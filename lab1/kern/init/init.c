@@ -12,6 +12,7 @@
 int kern_init(void) __attribute__((noreturn));
 void grade_backtrace(void);
 static void lab1_switch_test(void);
+static void lab1_print_cur_status(void);
 
 int
 kern_init(void) {
@@ -40,7 +41,23 @@ kern_init(void) {
     lab1_switch_test();
 
     /* do nothing */
-    while (1);
+    size_t last = 0;
+    while (1)
+    {
+        // extern volatile size_t ticks;
+        // if (ticks % 500 == 0 && ticks != last)
+        // {
+        //     cprintf("ticks  == %d\n", ticks);
+        //     lab1_print_cur_status();
+        //     last = ticks;
+        // }
+        extern volatile bool to_print_status;
+        if (to_print_status)
+        {
+            lab1_print_cur_status();
+            to_print_status = 0;
+        }
+    }
 }
 
 void __attribute__((noinline))

@@ -140,6 +140,7 @@ print_regs(struct pushregs *regs) {
     cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
 
+volatile bool to_print_status;
 /* trap_dispatch - dispatch based on what type of trap occurred */
 static void
 trap_dispatch(struct trapframe *tf) {
@@ -165,6 +166,43 @@ trap_dispatch(struct trapframe *tf) {
     case IRQ_OFFSET + IRQ_KBD:
         c = cons_getc();
         cprintf("kbd [%03d] %c\n", c, c);
+
+        if (c == '3')
+        {
+            cprintf("switch to user\n");
+            to_print_status = 1;
+            static struct trapframe tmp_tf;
+            if (tf->tf_cs != USER_CS)
+            {
+                tmp_tf = *tf;
+                tmp_tf.tf_cs = USER_CS;
+                tmp_tf.tf_ds = tmp_tf.tf_es = USER_DS;
+                tmp_tf.tf_ss = USER_DS;
+                tmp_tf.tf_esp = (uint32_t)tf + sizeof(struct trapframe) - 8;
+
+                tmp_tf.tf_eflags |= FL_IOPL_MASK;
+
+                *((uint32_t *)tf - 1) = (uint32_t)&tmp_tf;
+            }            
+        }
+        if (c == '0')
+        {
+            cprintf("switch to kernel\n");
+            to_print_status = 1;
+            struct trapframe *tmp_tf_ptr;
+            if (tf->tf_cs != KERNEL_CS)
+            {
+                tf->tf_cs = KERNEL_CS;
+                tf->tf_ds = tf->tf_es = KERNEL_DS;
+                tf->tf_eflags &= ~FL_IOPL_MASK;
+
+                tmp_tf_ptr = (struct trapframe*)(tf->tf_esp - (sizeof(struct trapframe) - 8));
+                __memmove(tmp_tf_ptr, tf, sizeof(struct trapframe) - 8);
+
+                *((uint32_t *)tf - 1) = (uint32_t)tmp_tf_ptr;
+            }
+        }
+
         break;
     //LAB1 CHALLENGE 1 : YOUR CODE you should modify below codes.
     case T_SWITCH_TOU:
